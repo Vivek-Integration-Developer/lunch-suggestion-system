@@ -1,0 +1,14 @@
+application:
+  placesApi:
+    apiKey: 'AIzaSyBVfFFr8_LCL5ATIAm1Ksc0GgIUSN_e5cA'
+    urlScheme: 'https'
+    urlHost: 'maps.googleapis.com'
+    path: '/maps/api/place/nearbysearch/json'
+    type: 'restaurant'
+    radius: 1500
+  openWeatherApi:
+    apiKey: 'fc008ea0fa282df4a181d6e1ed986139'
+    urlScheme: 'https'
+    urlHost: 'api.openweathermap.org'
+    path: '/data/2.5/onecall'
+    exclude: 'hourly,daily'
