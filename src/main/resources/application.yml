@@ -12,3 +12,7 @@ application:
     urlHost: 'api.openweathermap.org'
     path: '/data/2.5/onecall'
     exclude: 'hourly,daily'
+  s3:
+    accessKey: 'AKIA4QAPGHWM32AY3TU6'
+    secretKey: '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'
+    bucketName: 'lunch-suggestion'

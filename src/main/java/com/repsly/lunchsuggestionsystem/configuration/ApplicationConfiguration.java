@@ -12,4 +12,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ApplicationConfiguration {
     private PlacesApi placesApi;
     private OpenWeatherApi openWeatherApi;
+    private AmazonS3 s3;
 }

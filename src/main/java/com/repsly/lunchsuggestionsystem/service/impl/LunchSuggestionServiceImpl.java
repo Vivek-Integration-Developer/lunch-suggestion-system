@@ -1,5 +1,11 @@
 package com.repsly.lunchsuggestionsystem.service.impl;
 
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.gson.Gson;
 import com.opencsv.bean.ColumnPositionMappingStrategy;
 import com.opencsv.bean.StatefulBeanToCsv;
@@ -14,10 +20,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
@@ -40,8 +48,10 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
      * */
     @Override
     public ResponseEntity uploadNearbyRestaurants() {
+        File file = null;
         try {
             List<RestaurantDetails> restaurantDetailsList = new ArrayList<>();
+            file = new File(ConstantsUtil.CSV_LOCATION);
             for (Location location : ConstantsUtil.LOCATION_LIST) {
                 //Places API call
                 URIBuilder uriBuilder = new URIBuilder();
@@ -84,6 +94,8 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
             }
             log.info("Converting the data into CSV...");
             CSVWriter(restaurantDetailsList);
+            log.info("Uploading the file into S3 bucket");
+            uploadFileInS3(file);
             return ResponseEntity.created(URI.create("/upload")).build();
         } catch (IOException | URISyntaxException | InterruptedException e) {
             log.error("Error while getting the response from google places API: {}",e.getLocalizedMessage());
@@ -91,7 +103,31 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
         } catch (Exception ex) {
             log.error("Error while uploading the restaurant information: {}",ex.getLocalizedMessage());
             return ResponseEntity.internalServerError().body("Error while uploading the restaurant information");
+        } finally {
+            try {
+                if (file != null) {
+                    log.info("Deleting the csv file from local");
+                    FileUtils.forceDelete(file);
+                }
+            } catch (IOException e) {
+                log.error("Error while deleting the file in local");
+            }
         }
+    }
+
+    /**
+     * Uploading the csv file in Amazon S3 bucket
+     * */
+    private void uploadFileInS3(File file) {
+        AWSCredentials awsCredentials = new BasicAWSCredentials(applicationConfiguration.getS3().getAccessKey(),
+                applicationConfiguration.getS3().getSecretKey());
+        AmazonS3 s3client = AmazonS3ClientBuilder
+                .standard()
+                .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
+                .withRegion(Regions.US_EAST_1)
+                .build();
+        s3client.putObject(applicationConfiguration.getS3().getBucketName(), ConstantsUtil.CSV_LOCATION, file);
+        log.info("File uploaded successfully in S3 bucket...");
     }
 
     /**
@@ -122,9 +158,8 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
      * Converting the data into CSV file and saving it locally
      * */
     private void CSVWriter(List<RestaurantDetails> restaurantDetailsList) throws Exception {
-        final String CSV_LOCATION = "LunchSuggestion.csv";
         try {
-            FileWriter writer = new FileWriter(CSV_LOCATION);
+            FileWriter writer = new FileWriter(ConstantsUtil.CSV_LOCATION);
             writer.append("Location, Restaurant name, Price level, Rating, Total user ratings, Weather Condition, Address \n");
             ColumnPositionMappingStrategy mappingStrategy= new ColumnPositionMappingStrategy();
             mappingStrategy.setType(RestaurantDetails.class);

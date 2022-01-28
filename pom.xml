@@ -15,6 +15,7 @@
 	<description>Repsly&apos;s lunch suggestion sytem</description>
 	<properties>
 		<java.version>11</java.version>
+		<httpcomponents.httpclient.version>4.5.2</httpcomponents.httpclient.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -53,6 +54,19 @@
 			<artifactId>opencsv</artifactId>
 			<version>4.1</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-s3</artifactId>
+			<version>1.12.148</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/javax.xml.bind/jaxb-api -->
+		<dependency>
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>2.3.1</version>
+		</dependency>
+
 
 
 	</dependencies>
