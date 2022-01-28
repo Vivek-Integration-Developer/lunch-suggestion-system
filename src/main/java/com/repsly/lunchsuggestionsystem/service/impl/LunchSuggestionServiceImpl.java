@@ -6,6 +6,8 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.google.gson.Gson;
 import com.opencsv.bean.ColumnPositionMappingStrategy;
 import com.opencsv.bean.StatefulBeanToCsv;
@@ -20,8 +22,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.tomcat.util.http.fileupload.FileUtils;
+import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -51,7 +55,7 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
         File file = null;
         try {
             List<RestaurantDetails> restaurantDetailsList = new ArrayList<>();
-            file = new File(ConstantsUtil.CSV_LOCATION);
+            file = new File(ConstantsUtil.CSV_FILE_NAME);
             for (Location location : ConstantsUtil.LOCATION_LIST) {
                 //Places API call
                 URIBuilder uriBuilder = new URIBuilder();
@@ -116,18 +120,50 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
     }
 
     /**
+     * Download the nearby restaurants file from Amazon S3 bucket
+     * */
+    @Override
+    public ResponseEntity downloadFileForNearbyRestaurants() {
+        File file = null;
+        try {
+            log.info("Started downloading the file for nearby restaurants");
+            file= new File(ConstantsUtil.CSV_FILE_NAME);
+            AmazonS3 s3client = getS3Client();
+            S3Object s3object = s3client.getObject(applicationConfiguration.getS3().getBucketName(), ConstantsUtil.CSV_FILE_NAME);
+            S3ObjectInputStream inputStream = s3object.getObjectContent();
+            FileUtils.copyInputStreamToFile(inputStream, file);
+            log.info("File has been downloaded successfully");
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=" + ConstantsUtil.CSV_FILE_NAME)
+                    .contentLength(file.length())
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .body(new FileSystemResource(file));
+        } catch (Exception e) {
+            log.error("Error while converting/downloading the file : {}", e.getLocalizedMessage());
+            return ResponseEntity.internalServerError().body("Error while downloading the restaurant information");
+        }
+    }
+
+    /**
      * Uploading the csv file in Amazon S3 bucket
      * */
     private void uploadFileInS3(File file) {
+        AmazonS3 s3client = getS3Client();
+        s3client.putObject(applicationConfiguration.getS3().getBucketName(), ConstantsUtil.CSV_FILE_NAME, file);
+        log.info("File uploaded successfully in S3 bucket...");
+    }
+
+    /**
+     * Get Amazon S3 client information
+     * */
+    private AmazonS3 getS3Client() {
         AWSCredentials awsCredentials = new BasicAWSCredentials(applicationConfiguration.getS3().getAccessKey(),
                 applicationConfiguration.getS3().getSecretKey());
-        AmazonS3 s3client = AmazonS3ClientBuilder
+        return AmazonS3ClientBuilder
                 .standard()
                 .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
                 .withRegion(Regions.US_EAST_1)
                 .build();
-        s3client.putObject(applicationConfiguration.getS3().getBucketName(), ConstantsUtil.CSV_LOCATION, file);
-        log.info("File uploaded successfully in S3 bucket...");
     }
 
     /**
@@ -159,7 +195,7 @@ public class LunchSuggestionServiceImpl implements LunchSuggestionService {
      * */
     private void CSVWriter(List<RestaurantDetails> restaurantDetailsList) throws Exception {
         try {
-            FileWriter writer = new FileWriter(ConstantsUtil.CSV_LOCATION);
+            FileWriter writer = new FileWriter(ConstantsUtil.CSV_FILE_NAME);
             writer.append("Location, Restaurant name, Price level, Rating, Total user ratings, Weather Condition, Address \n");
             ColumnPositionMappingStrategy mappingStrategy= new ColumnPositionMappingStrategy();
             mappingStrategy.setType(RestaurantDetails.class);

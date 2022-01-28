@@ -9,7 +9,7 @@ import java.util.List;
 public class ConstantsUtil {
 
     public static final String BUSINESS_STATUS = "OPERATIONAL";
-    public static final String CSV_LOCATION = "LunchSuggestion.csv";
+    public static final String CSV_FILE_NAME = "LunchSuggestion.csv";
     private static List<Location> locationList = new ArrayList<>();
 
     static {
